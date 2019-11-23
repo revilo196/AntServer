@@ -3,10 +3,12 @@ package main
 import (
 	"bytes"
 	"encoding/csv"
+	"github.com/RobinUS2/golang-moving-average"
 	"github.com/wcharczuk/go-chart"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 )
@@ -37,9 +39,17 @@ func putHandler(writer http.ResponseWriter, request *http.Request) {
 	writer.Write([]byte("OK"))
 }
 
-func graphHandler(writer http.ResponseWriter, request *http.Request) {
+func graphHandler(writer http.ResponseWriter, r *http.Request) {
 
-	values, times := GetValuesFromDB(time.Now().Add(-3 * time.Hour))
+	uri, err := url.ParseRequestURI(r.RequestURI)
+	query := uri.Query()
+	tim, ok2 := query["t"]
+	ti, err := strconv.Atoi(tim[0])
+
+	values, times := GetValuesFromDB(time.Now().Add(-8 * time.Hour))
+	if ok2 && err == nil {
+		values, times = GetValuesFromDB(time.Now().Add(-time.Duration(ti) * time.Hour))
+	}
 	/*
 		p, err := plot.New()
 		if err != nil {
@@ -67,9 +77,11 @@ func graphHandler(writer http.ResponseWriter, request *http.Request) {
 
 	X := make([]float64, len(values))
 	Y := make([]float64, len(values))
+	e := movingaverage.New(5) 
 	for i := range X {
 		X[i] = float64(times[i].Day()*24*60 + times[i].Hour()*60 + times[i].Minute() + times[i].Second()/60)
-		Y[i] = float64(values[i])
+		e.Add(float64(values[i]))
+		Y[i] = e.Avg()
 	}
 
 	graph := chart.Chart{
@@ -82,7 +94,7 @@ func graphHandler(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	//buffer := bytes.NewBuffer([]byte{})
-	err := graph.Render(chart.PNG, writer)
+	err = graph.Render(chart.PNG, writer)
 	if err != nil {
 		log.Fatal("HTTP Server Error", err)
 	}
@@ -107,5 +119,5 @@ func main() {
 	if err != nil {
 		log.Fatal("HTTP Server Error", err)
 	}
-
+	
 }

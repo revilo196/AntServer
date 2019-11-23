@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const DbFILENAME = "./data.db"
+const DbFILENAME = "./datadata.db"
 
 const creatStmt = `create table data (timestp integer not null primary key, temperature real);`
 const insertStmt = `insert into data(timestp, temperature) values(?, ?)`
@@ -28,10 +28,11 @@ func ResetDB() {
 
 func InitDB() {
 	var err error
-	db, err = sql.Open("sqlite3", DbFILENAME)
+	db, err = sql.Open("sqlite3","file:"+ DbFILENAME+ "?cache=shared&mode=rwc")
 	if err != nil {
 		log.Fatal(err)
 	}
+	db.SetMaxOpenConns(1)
 }
 
 func CheckBaseDB() bool {
@@ -54,7 +55,7 @@ func CheckBaseDB() bool {
 			return true
 		}
 	}
-
+	row.Close()
 	return false
 }
 
@@ -138,5 +139,6 @@ func GetValuesFromDB(since time.Time) ([]float32, []time.Time) {
 		temperature = append(temperature, temp)
 		timestamps = append(timestamps, time.Unix(timestp, 0))
 	}
+	row.Close()
 	return temperature, timestamps
 }
